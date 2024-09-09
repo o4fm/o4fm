@@ -46,7 +46,7 @@ static int8_t o4fm_render_parse_symbol_size(uint8_t mode, size_t* symbol_size)
   return O4FM_ERR_OK;
 }
 
-static inline size_t o4fm_render_calculate_output_size(size_t source_size, size_t symbol_size, size_t symbol_rate, size_t sample_rate)
+static inline size_t o4fm_render_calculate_output_size(size_t source_size, size_t symbol_size, size_t symbol_rate)
 {
   // output_size = 
   //   source_size (in bytes) * 8 (in bits)
@@ -54,10 +54,10 @@ static inline size_t o4fm_render_calculate_output_size(size_t source_size, size_
   //     / symbol_rate (in symbols per second)
   //     * sample_rate (in samples per second)
   // rearrange the formula to avoid overflow or floating point
-  return source_size * 8 * sample_rate / symbol_size / symbol_rate;
+  return source_size * 8 * O4FM_RENDER_SAMPLE_RATE / symbol_size / symbol_rate;
 }
 
-int8_t o4fm_render(char* source, size_t source_size, uint8_t mode, size_t sample_rate, char** p_output)
+int8_t o4fm_render(char* source, size_t source_size, uint8_t mode, char** p_output)
 {
   O4FM_ERR_ASSERT(source != NULL, O4FM_ERR_INVALID_ARG);
   O4FM_ERR_ASSERT(p_output != NULL, O4FM_ERR_INVALID_ARG);
@@ -67,7 +67,7 @@ int8_t o4fm_render(char* source, size_t source_size, uint8_t mode, size_t sample
   size_t symbol_size = 1;
   O4FM_ERR_RET(o4fm_render_parse_symbol_size(mode, &symbol_size));
 
-  size_t output_size = o4fm_render_calculate_output_size(source_size, symbol_size, symbol_rate, sample_rate);
+  size_t output_size = o4fm_render_calculate_output_size(source_size, symbol_size, symbol_rate);
 
   *p_output = (char*)malloc(output_size);
   O4FM_ERR_ASSERT(*p_output != NULL, O4FM_ERR_OOM);
