@@ -1,23 +1,28 @@
 #include <stddef.h>
+#include <stdlib.h>
 
 #include "errno.h"
 #include "pack.h"
 
-int8_t o4fm_pack_header(o4fm_pack_header_t *header, char* target)
+int8_t o4fm_pack_header(o4fm_pack_header_t *header, char** output)
 {
-  if (header == NULL || target == NULL)
+  if (header == NULL || output == NULL)
     return O4FM_ERR_INVALID_ARG;
+  
+  *output = (char*)malloc(8);
+  if (*output == NULL)
+    return O4FM_ERR_OOM_ERROR;
 
-  target[0] = header->version;
-  target[1] = header->mode;
-  target[2] = header->flags;
-  target[3] = header->fec_mode;
-  target[4] = header->sender_id;
-  target[5] = header->receiver_id;
+  *output[0] = header->version;
+  *output[1] = header->mode;
+  *output[2] = header->flags;
+  *output[3] = header->fec_mode;
+  *output[4] = header->sender_id;
+  *output[5] = header->receiver_id;
 
   // in big endian
-  target[6] = header->body_size >> 8;
-  target[7] = header->body_size & 0xFF;
+  *output[6] = header->body_size >> 8;
+  *output[7] = header->body_size & 0xFF;
 
   return O4FM_ERR_OK;
 }
