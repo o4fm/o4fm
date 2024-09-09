@@ -10,3 +10,7 @@ add_library(
 )
 target_include_directories(o4fm_pack PRIVATE include)
 target_link_libraries(o4fm_pack m)
+
+add_executable(o4fm_pack_pack_test test/pack_test.c)
+target_include_directories(o4fm_pack_pack_test PRIVATE include)
+target_link_libraries(o4fm_pack_pack_test o4fm_pack)
