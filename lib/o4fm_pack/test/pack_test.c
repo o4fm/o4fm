@@ -13,7 +13,8 @@ int main()
     .fec_mode = O4FM_FEC_NONE,
     .sender_id = 0x00,
     .receiver_id = 0xFF,
-    .body_size = 0x0
+    .call_sign = "BH4GTN",
+    .body_size = 0x0,
   };
 
   char* output = NULL;
