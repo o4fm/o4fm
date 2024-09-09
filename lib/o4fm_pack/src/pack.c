@@ -6,14 +6,13 @@
 
 int8_t o4fm_pack_header(o4fm_pack_header_t *header, char** p_output)
 {
-  if (header == NULL || p_output == NULL)
-    return O4FM_ERR_INVALID_ARG;
+  O4FM_ERR_ASSERT(header != NULL, O4FM_ERR_INVALID_ARG);
+  O4FM_ERR_ASSERT(p_output != NULL, O4FM_ERR_INVALID_ARG);
   
   *p_output = (char*)malloc(8);
   char* output = *p_output;
 
-  if (output == NULL)
-    return O4FM_ERR_OOM_ERROR;
+  O4FM_ERR_ASSERT(output != NULL, O4FM_ERR_OOM);
 
   output[0] = header->version;
   output[1] = header->mode;

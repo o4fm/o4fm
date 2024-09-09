@@ -17,8 +17,8 @@ int main()
   };
 
   char* output = NULL;
-  ASSERT_RET(o4fm_pack_header(&header, &output));
-  // ASSERT(output != NULL);
+  O4FM_ERR_RET(o4fm_pack_header(&header, &output));
+  O4FM_ERR_ASSERT(output != NULL, O4FM_ERR_TEST);
 
   return 0;
 }
