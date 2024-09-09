@@ -20,6 +20,7 @@ int main()
   char* output = NULL;
   O4FM_ERR_RET(o4fm_pack_header(&header, &output));
   O4FM_ERR_ASSERT(output != NULL, O4FM_ERR_TEST);
+  free(output);
 
   return 0;
 }
