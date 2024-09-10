@@ -51,28 +51,51 @@ static inline size_t o4fm_render_calculate_output_size(size_t source_size, size_
   // output_size = 
   //   source_size (in bytes) * 8 (in bits)
   //     / symbol_size (in symbols)
-  //     / BAUDRATE (in symbols per second)
+  //     / baudrate (in symbols per second)
   //     * sample_rate (in samples per second)
   // rearrange the formula to avoid overflow or floating point
   return source_size * 8 * O4FM_RENDER_SAMPLE_RATE / symbol_size / baudrate;
 }
 
-int8_t o4fm_render(char* source, size_t source_size, uint8_t mode, char** p_output)
+int8_t o4fm_render_pcm(char* source, size_t source_size, uint8_t mode, size_t* p_output_size, int16_t** p_output)
 {
   O4FM_ERR_ASSERT(source != NULL, O4FM_ERR_INVALID_ARG);
+  O4FM_ERR_ASSERT(p_output_size != NULL, O4FM_ERR_INVALID_ARG);
   O4FM_ERR_ASSERT(p_output != NULL, O4FM_ERR_INVALID_ARG);
   
-  size_t BAUDRATE = 2400;
-  O4FM_ERR_RET(o4fm_render_parse_BAUDRATE(mode, &BAUDRATE));
+  size_t baudrate = 2400;
+  O4FM_ERR_RET(o4fm_render_parse_BAUDRATE(mode, &baudrate));
   size_t symbol_size = 1;
   O4FM_ERR_RET(o4fm_render_parse_symbol_size(mode, &symbol_size));
 
-  size_t output_size = o4fm_render_calculate_output_size(source_size, symbol_size, BAUDRATE);
-
-  *p_output = (char*)malloc(output_size);
+  *p_output_size = o4fm_render_calculate_output_size(source_size, symbol_size, baudrate);
+  *p_output = (int16_t*)malloc(*p_output_size * sizeof(int16_t));
   O4FM_ERR_ASSERT(*p_output != NULL, O4FM_ERR_OOM);
   
-  char* output = *p_output;
-  
+  size_t samples_per_symbol = O4FM_RENDER_SAMPLE_RATE / baudrate;
+  size_t current_sample = 0;
+
+  for (size_t i = 0; i < source_size; i++) {
+    for (size_t bit = 0; bit < 8; bit += symbol_size) {
+      int16_t symbol_value = 0;
+      
+      switch (mode & 0x0F) {
+        case O4FM_MODE_NRZ:
+          symbol_value = (source[i] & (1 << (7 - bit))) ? INT16_MAX : INT16_MIN;
+          break;
+        case O4FM_MODE_PAM4:
+          symbol_value = ((source[i] >> (6 - bit)) & 0x03) * (INT16_MAX / 3) - INT16_MAX;
+          break;
+        case O4FM_MODE_PAM16:
+          symbol_value = ((source[i] >> (4 - bit)) & 0x0F) * (INT16_MAX / 15) - INT16_MAX;
+          break;
+      }
+      
+      for (size_t j = 0; j < samples_per_symbol; j++) {
+        (*p_output)[current_sample++] = symbol_value;
+      }
+    }
+  }
+
   return O4FM_ERR_OK;
 }

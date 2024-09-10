@@ -14,3 +14,7 @@ target_link_libraries(o4fm_pack m)
 add_executable(o4fm_pack_pack_test test/pack_test.c)
 target_include_directories(o4fm_pack_pack_test PRIVATE include)
 target_link_libraries(o4fm_pack_pack_test o4fm_pack)
+
+add_executable(o4fm_pack_render_test test/render_test.c)
+target_include_directories(o4fm_pack_render_test PRIVATE include)
+target_link_libraries(o4fm_pack_render_test o4fm_pack)
