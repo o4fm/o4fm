@@ -4,20 +4,20 @@
 
 #include <stdlib.h>
 
-static int8_t o4fm_render_parse_BAUDRATE(uint8_t mode, size_t* BAUDRATE)
+static int8_t o4fm_render_parse_BAUDRATE(uint8_t mode, size_t* baudrate)
 {
-  O4FM_ERR_ASSERT(BAUDRATE != NULL, O4FM_ERR_INVALID_ARG);
+  O4FM_ERR_ASSERT(baudrate != NULL, O4FM_ERR_INVALID_ARG);
 
   switch (mode & 0xF0)
   {
     case O4FM_MODE_BAUDRATE_2400:
-      *BAUDRATE = 2400;
+      *baudrate = 2400;
       break;
     case O4FM_MODE_BAUDRATE_4800:
-      *BAUDRATE = 4800;
+      *baudrate = 4800;
       break;
     case O4FM_MODE_BAUDRATE_9600:
-      *BAUDRATE = 9600;
+      *baudrate = 9600;
       break;
     default:
       return O4FM_ERR_INVALID_ARG;
@@ -46,7 +46,7 @@ static int8_t o4fm_render_parse_symbol_size(uint8_t mode, size_t* symbol_size)
   return O4FM_ERR_OK;
 }
 
-static inline size_t o4fm_render_calculate_output_size(size_t source_size, size_t symbol_size, size_t BAUDRATE)
+static inline size_t o4fm_render_calculate_output_size(size_t source_size, size_t symbol_size, size_t baudrate)
 {
   // output_size = 
   //   source_size (in bytes) * 8 (in bits)
@@ -54,7 +54,7 @@ static inline size_t o4fm_render_calculate_output_size(size_t source_size, size_
   //     / BAUDRATE (in symbols per second)
   //     * sample_rate (in samples per second)
   // rearrange the formula to avoid overflow or floating point
-  return source_size * 8 * O4FM_RENDER_SAMPLE_RATE / symbol_size / BAUDRATE;
+  return source_size * 8 * O4FM_RENDER_SAMPLE_RATE / symbol_size / baudrate;
 }
 
 int8_t o4fm_render(char* source, size_t source_size, uint8_t mode, char** p_output)
