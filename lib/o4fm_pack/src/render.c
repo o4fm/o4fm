@@ -2,6 +2,7 @@
 #include "header.h"
 #include "render.h"
 
+#include <limits.h>
 #include <stdlib.h>
 
 static int8_t o4fm_render_parse_BAUDRATE(uint8_t mode, size_t* baudrate)

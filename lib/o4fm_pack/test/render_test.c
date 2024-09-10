@@ -6,8 +6,8 @@
 #include "header.h"
 #include "render.h"
 
-#define TEST_DATA "BH4GTN"
-#define TEST_DATA_SIZE 6
+#define TEST_DATA "O4FM"
+#define TEST_DATA_SIZE 4
 
 int test_render_ok(uint8_t mode)
 {
