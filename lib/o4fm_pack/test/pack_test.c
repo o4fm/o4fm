@@ -9,7 +9,7 @@ int main()
 {
   o4fm_pack_header_t header = {
     .version = 0x01,
-    .mode = O4FM_MODE_FSK_2 | O4FM_MODE_SYMBOL_RATE_2400,
+    .mode = O4FM_MODE_NRZ | O4FM_MODE_BAUDRATE_2400,
     .flags = 0x00,
     .fec_mode = O4FM_FEC_NONE,
     .sender_id = 0x00,
