@@ -5,6 +5,7 @@ add_library(
   include/errno.h
   include/header.h
   include/pack.h
+  include/render.h
   src/pack.c
   src/render.c
 )
