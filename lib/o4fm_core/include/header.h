@@ -16,7 +16,7 @@
 #define O4FM_FEC_RS_255_223 2
 #define O4FM_FEC_RS_255_191 3
 
-typedef struct o4fm_pack_header
+typedef struct o4fm_core_header
 {
   uint8_t version;
   uint8_t mode;
@@ -26,4 +26,4 @@ typedef struct o4fm_pack_header
   uint8_t receiver_id; // group_id(4) + node_id(4), 0xFF for broadcast, 0xxF for multicast
   char call_sign[16]; // ASCII call sign
   uint16_t body_size; // FEC encoded payload size
-} o4fm_pack_header_t;
+} o4fm_core_header_t;

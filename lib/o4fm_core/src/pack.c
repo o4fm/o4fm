@@ -82,7 +82,7 @@ static uint32_t crc32(const char* data, size_t size)
     return ~crc;
 }
 
-int8_t o4fm_pack_header(o4fm_pack_header_t *header, char** p_output)
+int8_t o4fm_core_header(o4fm_core_header_t *header, char** p_output)
 {
   O4FM_ERR_ASSERT(header != NULL, O4FM_ERR_INVALID_ARG);
   O4FM_ERR_ASSERT(p_output != NULL, O4FM_ERR_INVALID_ARG);
@@ -110,11 +110,11 @@ int8_t o4fm_pack_header(o4fm_pack_header_t *header, char** p_output)
     output[10 + i] = header->call_sign[i];
   }
 
-  // in big endian
+  // body size, in big endian
   output[26] = header->body_size >> 8;
   output[27] = header->body_size & 0xFF;
 
-  // crc32
+  // crc32, in big endian
   uint32_t crc = crc32(output, 28);
   output[28] = crc >> 24;
   output[29] = (crc >> 16) & 0xFF;

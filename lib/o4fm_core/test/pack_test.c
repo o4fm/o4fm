@@ -7,7 +7,7 @@
 
 int main()
 {
-  o4fm_pack_header_t header = {
+  o4fm_core_header_t header = {
     .version = 0x01,
     .mode = O4FM_MODE_NRZ | O4FM_MODE_BAUDRATE_2400,
     .flags = 0x00,
@@ -19,7 +19,7 @@ int main()
   };
 
   char* output = NULL;
-  O4FM_ERR_RET(o4fm_pack_header(&header, &output));
+  O4FM_ERR_RET(o4fm_core_header(&header, &output));
   O4FM_ERR_ASSERT(output != NULL, O4FM_ERR_TEST);
   free(output);
 
