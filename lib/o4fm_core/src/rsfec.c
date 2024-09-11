@@ -30,14 +30,14 @@ typedef struct {
 
 static rs_codec_t* codec = NULL;
 
-static void* init_rs_char(int symsize, int gfpoly, int fcr, int prim, int nroots, int pad);
+static rs_control_t* init_rs_char(int symsize, int gfpoly, int fcr, int prim, int nroots, int pad);
 static void encode_rs(rs_control_t* rs, uint16_t* data, uint16_t* parity);
 static inline int mod_nn(rs_control_t* rs, int x);
 static int decode_rs(rs_control_t* rs, uint16_t* data);
 
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
 
-static void* init_rs_char(int symsize, int gfpoly, int fcr, int prim, int nroots, int pad)
+static rs_control_t* init_rs_char(int symsize, int gfpoly, int fcr, int prim, int nroots, int pad)
 {
     int i, j, sr, root, iprim;
     uint16_t* alpha_to;
