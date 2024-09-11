@@ -4,4 +4,4 @@
 
 #include "header.h"
 
-int8_t o4fm_core_header(o4fm_core_header_t *header, char** p_output);
+int8_t o4fm_pack_header(o4fm_core_header_t *header, char** p_output);

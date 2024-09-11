@@ -82,7 +82,7 @@ static uint32_t crc32(const char* data, size_t size)
     return ~crc;
 }
 
-int8_t o4fm_core_header(o4fm_core_header_t *header, char** p_output)
+int8_t o4fm_pack_header(o4fm_core_header_t *header, char** p_output)
 {
   O4FM_ERR_ASSERT(header != NULL, O4FM_ERR_INVALID_ARG);
   O4FM_ERR_ASSERT(p_output != NULL, O4FM_ERR_INVALID_ARG);
