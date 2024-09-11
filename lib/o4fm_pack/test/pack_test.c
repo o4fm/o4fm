@@ -8,7 +8,6 @@
 int main()
 {
   o4fm_pack_header_t header = {
-    .magic = {0x4F, 0x34, 0x46, 0x4D},
     .version = 0x01,
     .mode = O4FM_MODE_NRZ | O4FM_MODE_BAUDRATE_2400,
     .flags = 0x00,

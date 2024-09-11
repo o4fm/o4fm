@@ -18,7 +18,6 @@
 
 typedef struct o4fm_pack_header
 {
-  char magic[4]; // 0x4F 0x34 0x46 0x4D
   uint8_t version;
   uint8_t mode;
   uint8_t flags;
