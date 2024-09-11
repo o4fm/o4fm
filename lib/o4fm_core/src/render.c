@@ -5,7 +5,7 @@
 #include <limits.h>
 #include <stdlib.h>
 
-static int8_t o4fm_render_parse_BAUDRATE(uint8_t mode, size_t* baudrate)
+static int8_t o4fm_render_parse_baudrate(uint8_t mode, size_t* baudrate)
 {
   O4FM_ERR_ASSERT(baudrate != NULL, O4FM_ERR_INVALID_ARG);
 
@@ -58,14 +58,14 @@ static inline size_t o4fm_render_calculate_output_size(size_t source_size, size_
   return source_size * 8 * O4FM_RENDER_SAMPLE_RATE / symbol_size / baudrate;
 }
 
-int8_t o4fm_render_pcm(char* source, size_t source_size, uint8_t mode, size_t* p_output_size, int16_t** p_output)
+int8_t o4fm_render_pcm(const char* source, size_t source_size, uint8_t mode, size_t* p_output_size, int16_t** p_output)
 {
   O4FM_ERR_ASSERT(source != NULL, O4FM_ERR_INVALID_ARG);
   O4FM_ERR_ASSERT(p_output_size != NULL, O4FM_ERR_INVALID_ARG);
   O4FM_ERR_ASSERT(p_output != NULL, O4FM_ERR_INVALID_ARG);
   
   size_t baudrate = 2400;
-  O4FM_ERR_RET(o4fm_render_parse_BAUDRATE(mode, &baudrate));
+  O4FM_ERR_RET(o4fm_render_parse_baudrate(mode, &baudrate));
   size_t symbol_size = 1;
   O4FM_ERR_RET(o4fm_render_parse_symbol_size(mode, &symbol_size));
 

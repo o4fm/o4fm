@@ -1,5 +1,6 @@
 #include <stddef.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "errno.h"
 #include "pack.h"
@@ -82,7 +83,7 @@ static uint32_t crc32(const char* data, size_t size)
     return ~crc;
 }
 
-int8_t o4fm_pack_header(o4fm_core_header_t *header, char** p_output)
+int8_t o4fm_pack_header(const o4fm_core_header_t *header, char** p_output)
 {
   O4FM_ERR_ASSERT(header != NULL, O4FM_ERR_INVALID_ARG);
   O4FM_ERR_ASSERT(p_output != NULL, O4FM_ERR_INVALID_ARG);
@@ -122,4 +123,22 @@ int8_t o4fm_pack_header(o4fm_core_header_t *header, char** p_output)
   output[31] = crc & 0xFF;
 
   return O4FM_ERR_OK;
+}
+
+int8_t o4fm_pack_payload(const char* payload, size_t payload_size, uint8_t fec_mode, char** p_output, size_t* p_output_size)
+{
+  O4FM_ERR_ASSERT(payload != NULL, O4FM_ERR_INVALID_ARG);
+  O4FM_ERR_ASSERT(p_output != NULL, O4FM_ERR_INVALID_ARG);
+  O4FM_ERR_ASSERT(p_output_size != NULL, O4FM_ERR_INVALID_ARG);
+
+  if (fec_mode == O4FM_FEC_NONE) {
+    *p_output_size = payload_size;
+    *p_output = (char*)malloc(payload_size);
+    O4FM_ERR_ASSERT(*p_output != NULL, O4FM_ERR_OOM);
+    memcpy(*p_output, payload, payload_size);
+    return O4FM_ERR_OK;
+  }
+
+  // TODO: implement FEC
+  return O4FM_ERR_NOT_SUPPORTED;
 }

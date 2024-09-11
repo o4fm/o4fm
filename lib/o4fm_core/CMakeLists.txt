@@ -6,8 +6,10 @@ add_library(
   include/header.h
   include/pack.h
   include/render.h
+  include/rsfec.h
   src/pack.c
   src/render.c
+  src/rsfec.c
 )
 target_include_directories(o4fm_core PRIVATE include)
 target_link_libraries(o4fm_core m)
