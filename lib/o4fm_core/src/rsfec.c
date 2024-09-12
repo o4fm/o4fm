@@ -288,7 +288,7 @@ static int decode_rs(rs_control_t* rs, uint16_t* data)
     }
 
     if (count == 0) {
-        return 0; // No errors
+        return O4FM_ERR_OK; // No errors
     }
 
     // Berlekamp-Massey algorithm
@@ -336,7 +336,7 @@ static int decode_rs(rs_control_t* rs, uint16_t* data)
     }
 
     if (count != deg_elp) {
-        return -1; // Decoding failed
+        return O4FM_ERR_CHECKSUM; // Decoding failed
     }
 
     // Correct the errors
