@@ -26,6 +26,7 @@ pub const DEFAULT_TONE_SPACING_HZ: u16 = 2_000;
 pub const DEFAULT_RX_BANDWIDTH_HZ: u16 = 10_000;
 pub const DEFAULT_AFC_RANGE_HZ: u16 = 600;
 pub const DEFAULT_NOISE_ADAPT_K_Q8: u8 = 96;
+const DATA_FRAME_PAYLOAD_BYTES_U16: u16 = 128;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Modulation {
@@ -113,7 +114,7 @@ impl Default for RadioProfile {
             noise_adapt_k_q8: DEFAULT_NOISE_ADAPT_K_Q8,
             continuous_noise_mode: true,
             whitening: true,
-            max_payload_bytes: DATA_FRAME_PAYLOAD_BYTES as u16,
+            max_payload_bytes: DATA_FRAME_PAYLOAD_BYTES_U16,
             bt_tenths: 5,
         }
     }
@@ -195,18 +196,19 @@ pub struct NegotiationProfile {
 impl NegotiationProfile {
     #[must_use]
     pub fn to_radio_profile(self) -> RadioProfile {
-        let mut out = RadioProfile::default();
-        out.modulation = self.modulation;
-        out.symbol_rate = self.symbol_rate;
-        out.tone_center_hz = self.tone_center_hz;
-        out.tone_spacing_hz = self.tone_spacing_hz;
-        out.rx_bandwidth_hz = self.rx_bandwidth_hz;
-        out.afc_range_hz = self.afc_range_hz;
-        out.preamble_symbols = self.preamble_symbols;
-        out.sync_word = self.sync_word;
-        out.noise_adapt_k_q8 = self.noise_adapt_k_q8;
-        out.continuous_noise_mode = self.continuous_noise_mode;
-        out
+        RadioProfile {
+            modulation: self.modulation,
+            symbol_rate: self.symbol_rate,
+            tone_center_hz: self.tone_center_hz,
+            tone_spacing_hz: self.tone_spacing_hz,
+            rx_bandwidth_hz: self.rx_bandwidth_hz,
+            afc_range_hz: self.afc_range_hz,
+            preamble_symbols: self.preamble_symbols,
+            sync_word: self.sync_word,
+            noise_adapt_k_q8: self.noise_adapt_k_q8,
+            continuous_noise_mode: self.continuous_noise_mode,
+            ..RadioProfile::default()
+        }
     }
 
     #[must_use]
@@ -284,6 +286,10 @@ impl Frame {
         Some(Self { header, payload: v })
     }
 
+    /// Encode frame bytes with optional payload whitening and trailing CRC.
+    ///
+    /// # Errors
+    /// Returns an error if payload/frame size exceeds configured limits.
     pub fn encode(&self, whitening: bool) -> Result<Vec<u8, MAX_FRAME_BYTES>, FrameCodecError> {
         if self.payload.len() > MAX_PAYLOAD_BYTES {
             return Err(FrameCodecError::PayloadTooLarge);
@@ -312,6 +318,10 @@ impl Frame {
         Ok(out)
     }
 
+    /// Decode frame bytes and verify CRC.
+    ///
+    /// # Errors
+    /// Returns an error for invalid format, size overflow, or CRC mismatch.
     pub fn decode(buf: &[u8], whitening: bool) -> Result<Self, FrameCodecError> {
         if buf.len() < 8 {
             return Err(FrameCodecError::InvalidFormat);
@@ -392,6 +402,10 @@ impl LogicalFrame {
         })
     }
 
+    /// Encode a logical frame.
+    ///
+    /// # Errors
+    /// Returns an error if payload or total size is invalid.
     pub fn encode(&self) -> Result<Vec<u8, LOGICAL_MTU_BYTES>, LogicalFrameCodecError> {
         if self.payload.len() > LOGICAL_MAX_PAYLOAD_BYTES {
             return Err(LogicalFrameCodecError::PayloadTooLarge);
@@ -427,6 +441,10 @@ impl LogicalFrame {
         Ok(out)
     }
 
+    /// Decode a serialized logical frame.
+    ///
+    /// # Errors
+    /// Returns an error if magic/version/length/header validation fails.
     pub fn decode(buf: &[u8]) -> Result<Self, LogicalFrameCodecError> {
         if buf.len() < LOGICAL_HEADER_BYTES {
             return Err(LogicalFrameCodecError::InvalidFormat);
@@ -484,6 +502,10 @@ impl LogicalFrame {
 
 const NEGOTIATION_PROFILE_BYTES: usize = 30;
 
+/// Encode profile capability list payload.
+///
+/// # Errors
+/// Returns an error if output buffer capacity is exceeded.
 pub fn encode_capability_payload(
     profiles: &[NegotiationProfile],
 ) -> Result<Vec<u8, MAX_PAYLOAD_BYTES>, NegotiationCodecError> {
@@ -496,6 +518,10 @@ pub fn encode_capability_payload(
     Ok(out)
 }
 
+/// Decode profile capability list payload.
+///
+/// # Errors
+/// Returns an error if payload format is invalid or exceeds limits.
 pub fn decode_capability_payload(
     payload: &[u8],
 ) -> Result<Vec<NegotiationProfile, MAX_NEGOTIATION_PROFILES>, NegotiationCodecError> {
@@ -520,6 +546,10 @@ pub fn decode_capability_payload(
     Ok(out)
 }
 
+/// Encode selected profile payload.
+///
+/// # Errors
+/// Returns an error if output buffer capacity is exceeded.
 pub fn encode_selected_profile_payload(
     profile: &NegotiationProfile,
 ) -> Result<Vec<u8, MAX_PAYLOAD_BYTES>, NegotiationCodecError> {
@@ -528,6 +558,10 @@ pub fn encode_selected_profile_payload(
     Ok(out)
 }
 
+/// Decode selected profile payload.
+///
+/// # Errors
+/// Returns an error if payload size or content is invalid.
 pub fn decode_selected_profile_payload(
     payload: &[u8],
 ) -> Result<NegotiationProfile, NegotiationCodecError> {

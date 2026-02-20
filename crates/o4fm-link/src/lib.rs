@@ -93,13 +93,12 @@ impl LinkMachine {
     }
 
     #[must_use]
+    #[allow(clippy::too_many_lines)]
     pub fn link_tick(&mut self, event: LinkEvent) -> Vec<LinkAction, 8> {
         let mut out = Vec::<LinkAction, 8>::new();
 
         match (&self.state, event) {
-            (LinkState::Idle, LinkEvent::PttReady)
-            | (LinkState::Fallback, LinkEvent::PttReady)
-            | (LinkState::Reacquire, LinkEvent::PttReady) => {
+            (LinkState::Idle | LinkState::Fallback | LinkState::Reacquire, LinkEvent::PttReady) => {
                 self.state = LinkState::Probe;
                 self.capability_sent = false;
                 self.remote_profiles.clear();
@@ -108,8 +107,7 @@ impl LinkMachine {
                 let _ = out.push(LinkAction::SendFrame(probe));
             }
 
-            (LinkState::Idle, LinkEvent::RxFrame(frame))
-            | (LinkState::Probe, LinkEvent::RxFrame(frame))
+            (LinkState::Idle | LinkState::Probe, LinkEvent::RxFrame(frame))
                 if frame.header.kind == FrameKind::Probe =>
             {
                 self.state = LinkState::Negotiating;
@@ -122,8 +120,7 @@ impl LinkMachine {
                 }
             }
 
-            (LinkState::Probe, LinkEvent::RxFrame(frame))
-            | (LinkState::Negotiating, LinkEvent::RxFrame(frame))
+            (LinkState::Probe | LinkState::Negotiating, LinkEvent::RxFrame(frame))
                 if frame.header.kind == FrameKind::Capability =>
             {
                 self.state = LinkState::Negotiating;
@@ -385,8 +382,10 @@ mod tests {
 
     #[test]
     fn data_retransmit_then_fallback() {
-        let mut p = LinkProfile::default();
-        p.max_retransmissions = 1;
+        let p = LinkProfile {
+            max_retransmissions: 1,
+            ..LinkProfile::default()
+        };
         let mut link = LinkMachine::new(p);
         link.state = LinkState::Data;
 

@@ -1,3 +1,10 @@
+#![allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    clippy::missing_errors_doc,
+    clippy::trivially_copy_pass_by_ref
+)]
+
 use labrador_ldpc::LDPCCode;
 use o4fm_core::{FecProfile, FecScheme};
 use thiserror::Error;

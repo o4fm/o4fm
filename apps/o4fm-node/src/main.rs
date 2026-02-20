@@ -1,3 +1,14 @@
+#![allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_precision_loss,
+    clippy::cast_sign_loss,
+    clippy::field_reassign_with_default,
+    clippy::manual_let_else,
+    clippy::too_many_lines,
+    clippy::trivially_copy_pass_by_ref,
+    clippy::unreadable_literal
+)]
+
 use clap::Parser;
 use o4fm_audio::list_device_infos;
 

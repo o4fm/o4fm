@@ -1,3 +1,13 @@
+#![allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_precision_loss,
+    clippy::cast_sign_loss,
+    clippy::field_reassign_with_default,
+    clippy::manual_let_else,
+    clippy::semicolon_if_nothing_returned,
+    clippy::trivially_copy_pass_by_ref
+)]
+
 use criterion::{BatchSize, BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use heapless::Vec as HVec;
 use o4fm_core::{
@@ -7,6 +17,7 @@ use o4fm_core::{
 use o4fm_fec::{decode_ldpc, encode_ldpc};
 use o4fm_link::{LinkEvent, LinkMachine};
 use o4fm_phy::{demodulate, modulate};
+
 use std::time::Instant;
 
 fn bench_fec(c: &mut Criterion) {

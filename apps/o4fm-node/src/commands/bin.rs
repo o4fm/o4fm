@@ -40,8 +40,8 @@ pub(crate) fn run_bin_to_wav_mode(args: &Bin2WavArgs) -> Result<(), Box<dyn std:
     println!("  callsign:          {}", callsign_to_string(&callsign));
     println!("  lp_flags:          0x{flags:016X}");
     println!("  lp_mode:           {}", logical_mode_name(mode));
-    println!("  frame_payload:     {}B", DATA_FRAME_PAYLOAD_BYTES);
-    println!("  logical_mtu:       {}B", LOGICAL_MTU_BYTES);
+    println!("  frame_payload:     {DATA_FRAME_PAYLOAD_BYTES}B");
+    println!("  logical_mtu:       {LOGICAL_MTU_BYTES}B");
     println!("  symbol_rate:       {}", tx.symbol_rate_hz);
     println!("  modulation:        {}FSK", tx.modulation_order);
     println!("  profile_id:        {}", selected.profile_id);
@@ -87,8 +87,8 @@ pub(crate) fn run_wav_to_bin_mode(args: &Wav2BinArgs) -> Result<(), Box<dyn std:
         "  logical_packets:   {}",
         out.len().div_ceil(LOGICAL_MTU_BYTES)
     );
-    println!("  frame_payload:     {}B", DATA_FRAME_PAYLOAD_BYTES);
-    println!("  logical_mtu:       {}B", LOGICAL_MTU_BYTES);
+    println!("  frame_payload:     {DATA_FRAME_PAYLOAD_BYTES}B");
+    println!("  logical_mtu:       {LOGICAL_MTU_BYTES}B");
     println!("  symbol_rate:       {}", rx.symbol_rate_hz);
     println!("  modulation:        {}FSK", rx.modulation_order);
     println!("  profiles_tried:    {}", selected_profiles.len());

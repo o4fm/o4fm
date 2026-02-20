@@ -49,7 +49,15 @@ pub struct AudioDeviceInfo {
 }
 
 pub trait AudioIo {
+    /// Read one frame of mono/stereo PCM samples into `out`.
+    ///
+    /// # Errors
+    /// Returns an error if the backend cannot provide samples.
     fn read_frame(&mut self, out: &mut [i16]) -> Result<usize, AudioError>;
+    /// Write one frame of PCM samples.
+    ///
+    /// # Errors
+    /// Returns an error if the backend cannot accept samples.
     fn write_frame(&mut self, samples: &[i16]) -> Result<(), AudioError>;
 }
 
@@ -86,10 +94,19 @@ pub struct CpalRealtimeAudio {
 }
 
 impl CpalRealtimeAudio {
+    /// Open realtime audio using default input/output devices.
+    ///
+    /// # Errors
+    /// Returns an error if the CPAL backend or devices are unavailable.
     pub fn new_default(cfg: AudioConfig) -> Result<Self, AudioError> {
         Self::new_with_device_ids(cfg, None, None)
     }
 
+    /// Open realtime audio using optional explicit device IDs.
+    ///
+    /// # Errors
+    /// Returns an error for invalid IDs, missing devices, unsupported formats,
+    /// or stream creation failures.
     pub fn new_with_device_ids(
         cfg: AudioConfig,
         input_device_id: Option<&str>,
@@ -215,6 +232,10 @@ pub struct WavFileAudio {
 }
 
 impl WavFileAudio {
+    /// Open WAV-backed audio I/O for offline processing.
+    ///
+    /// # Errors
+    /// Returns an error if input/output WAV files cannot be opened or parsed.
     pub fn open<PIn: AsRef<Path>, POut: AsRef<Path>>(
         input_path: PIn,
         output_path: POut,
@@ -228,8 +249,8 @@ impl WavFileAudio {
                 let mut v = Vec::new();
                 for sample in reader.samples::<f32>() {
                     let s = sample.map_err(|_| AudioError::FileIo)?;
-                    let scaled = (s * f32::from(i16::MAX)).round();
-                    v.push(scaled.clamp(f32::from(i16::MIN), f32::from(i16::MAX)) as i16);
+                    let normalized = s.clamp(-1.0, 1.0);
+                    v.push(i16::from_sample(normalized));
                 }
                 v
             }
@@ -241,16 +262,9 @@ impl WavFileAudio {
                         v.push(sample.map_err(|_| AudioError::FileIo)?);
                     }
                 } else {
-                    let max = ((1_i64 << (bps - 1)) - 1) as f32;
                     for sample in reader.samples::<i32>() {
-                        let s = sample.map_err(|_| AudioError::FileIo)? as f32;
-                        let normalized = s / max;
-                        v.push(
-                            (normalized * f32::from(i16::MAX))
-                                .round()
-                                .clamp(f32::from(i16::MIN), f32::from(i16::MAX))
-                                as i16,
-                        );
+                        let s = sample.map_err(|_| AudioError::FileIo)?;
+                        v.push(scale_int_sample_to_i16(s, bps));
                     }
                 }
                 v
@@ -273,6 +287,10 @@ impl WavFileAudio {
         })
     }
 
+    /// Finalize and flush output WAV file.
+    ///
+    /// # Errors
+    /// Returns an error if finalization of the WAV writer fails.
     pub fn finalize(self) -> Result<(), AudioError> {
         self.output_writer
             .finalize()
@@ -308,23 +326,30 @@ impl AudioIo for WavFileAudio {
     }
 }
 
+/// List available audio device display names.
+///
+/// # Errors
+/// Returns an error if audio backend device enumeration fails.
 pub fn list_devices() -> Result<Vec<String>, AudioError> {
     Ok(list_device_infos()?.into_iter().map(|d| d.name).collect())
 }
 
+/// List available audio devices with stable IDs and capabilities.
+///
+/// # Errors
+/// Returns an error if audio backend device enumeration fails.
 pub fn list_device_infos() -> Result<Vec<AudioDeviceInfo>, AudioError> {
     let host = cpal::default_host();
     let devices = host.devices().map_err(|_| AudioError::BackendUnavailable)?;
     let mut out = Vec::new();
     for device in devices {
-        let name = device
-            .description()
-            .map(|desc| desc.name().to_owned())
-            .unwrap_or_else(|_| "unknown-device".to_owned());
+        let name = device.description().map_or_else(
+            |_| "unknown-device".to_owned(),
+            |desc| desc.name().to_owned(),
+        );
         let id = device
             .id()
-            .map(|id| id.to_string())
-            .unwrap_or_else(|_| "unknown-id".to_owned());
+            .map_or_else(|_| "unknown-id".to_owned(), |id| id.to_string());
         out.push(AudioDeviceInfo {
             id,
             name,
@@ -333,6 +358,13 @@ pub fn list_device_infos() -> Result<Vec<AudioDeviceInfo>, AudioError> {
         });
     }
     Ok(out)
+}
+
+fn scale_int_sample_to_i16(sample: i32, bits_per_sample: u16) -> i16 {
+    let shift = u32::from(bits_per_sample.saturating_sub(16));
+    let shifted = if shift == 0 { sample } else { sample >> shift };
+    let clamped = shifted.clamp(i32::from(i16::MIN), i32::from(i16::MAX));
+    i16::try_from(clamped).expect("clamped to i16 range")
 }
 
 fn build_input_stream<T>(

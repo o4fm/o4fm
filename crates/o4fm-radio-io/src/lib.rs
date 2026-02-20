@@ -1,15 +1,10 @@
 use thiserror::Error;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum RadioBusy {
+    #[default]
     Idle,
     Busy,
-}
-
-impl Default for RadioBusy {
-    fn default() -> Self {
-        Self::Idle
-    }
 }
 
 #[derive(Debug, Error)]
@@ -21,7 +16,15 @@ pub enum RadioIoError {
 }
 
 pub trait RadioIo {
+    /// Set PTT state.
+    ///
+    /// # Errors
+    /// Returns an error if radio I/O backend fails.
     fn set_ptt(&mut self, enabled: bool) -> Result<(), RadioIoError>;
+    /// Read current COR/busy state.
+    ///
+    /// # Errors
+    /// Returns an error if radio I/O backend fails.
     fn read_cor(&mut self) -> Result<RadioBusy, RadioIoError>;
 }
 

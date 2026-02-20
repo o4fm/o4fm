@@ -50,6 +50,7 @@ struct Stats {
     total_bits: usize,
     bit_errors: usize,
     frames: usize,
+    frames_f32: f32,
     frame_errors: usize,
     decode_failures: usize,
     snr_acc: f32,
@@ -57,8 +58,10 @@ struct Stats {
 
 fn main() {
     let cfg = parse_args(env::args().skip(1).collect());
-    let mut radio = RadioProfile::default();
-    radio.symbol_rate = cfg.symbol_rate;
+    let radio = RadioProfile {
+        symbol_rate: cfg.symbol_rate,
+        ..RadioProfile::default()
+    };
 
     let mut fec = FecProfile::default();
     fec.code_k = u16::try_from(cfg.payload_bits).expect("payload bits must fit u16");
@@ -87,14 +90,14 @@ fn main() {
     for noise in noise_points(&cfg) {
         let mut stats = Stats::default();
         for _ in 0..cfg.trials {
-            run_trial(&cfg, &radio, &fec, noise, &mut rng, &mut stats);
+            run_trial(&cfg, &radio, fec, noise, &mut rng, &mut stats);
         }
 
         let ber = ratio(stats.bit_errors, stats.total_bits);
         let fer = ratio(stats.frame_errors, stats.frames);
         let dfr = ratio(stats.decode_failures, stats.frames);
         let snr = if stats.frames > 0 {
-            stats.snr_acc / stats.frames as f32
+            stats.snr_acc / stats.frames_f32
         } else {
             0.0
         };
@@ -106,7 +109,7 @@ fn main() {
 fn run_trial(
     cfg: &Config,
     radio: &RadioProfile,
-    fec: &FecProfile,
+    fec: FecProfile,
     noise_std: f32,
     rng: &mut StdRng,
     stats: &mut Stats,
@@ -115,7 +118,7 @@ fn run_trial(
         .map(|_| u8::from(rng.random::<bool>()))
         .collect();
 
-    let encoded = encode_ldpc(&payload_bits, fec);
+    let encoded = encode_ldpc(&payload_bits, &fec);
     let pcm = modulate(&encoded, radio).expect("modulate must succeed");
 
     let mut channel = add_awgn(&pcm, noise_std, rng);
@@ -124,33 +127,31 @@ fn run_trial(
     let demod = demodulate(&channel, radio).expect("demodulate must succeed");
 
     stats.frames += 1;
+    stats.frames_f32 += 1.0;
     stats.snr_acc += demod.snr_est;
 
-    match decode_ldpc(&demod.soft_bits, fec) {
-        Ok(decoded) => {
-            let raw_errors = decoded
-                .iter()
-                .zip(payload_bits.iter())
-                .filter(|(a, b)| a != b)
-                .count();
-            let inv_errors = decoded
-                .iter()
-                .zip(payload_bits.iter())
-                .filter(|(a, b)| (**a ^ 1) != **b)
-                .count();
-            let best = raw_errors.min(inv_errors);
-            stats.total_bits += payload_bits.len();
-            stats.bit_errors += best;
-            if best > 0 {
-                stats.frame_errors += 1;
-            }
-        }
-        Err(_) => {
-            stats.decode_failures += 1;
+    if let Ok(decoded) = decode_ldpc(&demod.soft_bits, &fec) {
+        let raw_errors = decoded
+            .iter()
+            .zip(payload_bits.iter())
+            .filter(|(a, b)| a != b)
+            .count();
+        let inv_errors = decoded
+            .iter()
+            .zip(payload_bits.iter())
+            .filter(|(a, b)| (**a ^ 1) != **b)
+            .count();
+        let best = raw_errors.min(inv_errors);
+        stats.total_bits += payload_bits.len();
+        stats.bit_errors += best;
+        if best > 0 {
             stats.frame_errors += 1;
-            stats.total_bits += payload_bits.len();
-            stats.bit_errors += payload_bits.len();
         }
+    } else {
+        stats.decode_failures += 1;
+        stats.frame_errors += 1;
+        stats.total_bits += payload_bits.len();
+        stats.bit_errors += payload_bits.len();
     }
 }
 
@@ -183,7 +184,6 @@ fn parse_args(args: Vec<String>) -> Config {
             "--gain" => cfg.gain = parse_or(v, cfg.gain),
             "--dc-offset" => cfg.dc_offset = parse_or(v, cfg.dc_offset),
             "--clip" => cfg.clip = parse_or(v, cfg.clip),
-            "--symbol-rate" => {}
             "--max-iters" => cfg.max_iterations = parse_or(v, cfg.max_iterations),
             "--seed" => cfg.seed = parse_or(v, cfg.seed),
             _ => {}
@@ -234,7 +234,7 @@ fn ratio(num: usize, den: usize) -> f32 {
     if den == 0 {
         0.0
     } else {
-        num as f32 / den as f32
+        usize_to_f32_saturating(num) / usize_to_f32_saturating(den)
     }
 }
 
@@ -244,7 +244,7 @@ fn add_awgn(samples: &[i16], std_dev: f32, rng: &mut impl Rng) -> Vec<i16> {
         .map(|&s| {
             let noise = box_muller(rng) * std_dev;
             let v = f32::from(s) + noise;
-            v.clamp(f32::from(i16::MIN), f32::from(i16::MAX)) as i16
+            round_clamp_i16(v)
         })
         .collect()
 }
@@ -266,7 +266,7 @@ fn apply_channel_impairments(samples: &mut [i16], cfg: &Config, rng: &mut impl R
 
         x = x * cfg.gain + cfg.dc_offset;
         x = x.clamp(-cfg.clip, cfg.clip);
-        *sample = x.clamp(f32::from(i16::MIN), f32::from(i16::MAX)) as i16;
+        *sample = round_clamp_i16(x);
     }
 }
 
@@ -274,4 +274,22 @@ fn box_muller(rng: &mut impl Rng) -> f32 {
     let u1 = rng.random::<f32>().max(1e-6);
     let u2 = rng.random::<f32>();
     (-2.0f32 * u1.ln()).sqrt() * (2.0f32 * core::f32::consts::PI * u2).cos()
+}
+
+fn usize_to_f32_saturating(v: usize) -> f32 {
+    let mut remaining = v;
+    let mut out = 0.0_f32;
+    let chunk_max = usize::from(u16::MAX);
+    while remaining > 0 {
+        let chunk = remaining.min(chunk_max);
+        let chunk_u16 = u16::try_from(chunk).expect("chunk is bounded to u16");
+        out += f32::from(chunk_u16);
+        remaining -= chunk;
+    }
+    out
+}
+
+#[allow(clippy::cast_possible_truncation)]
+fn round_clamp_i16(v: f32) -> i16 {
+    v.round().clamp(f32::from(i16::MIN), f32::from(i16::MAX)) as i16
 }

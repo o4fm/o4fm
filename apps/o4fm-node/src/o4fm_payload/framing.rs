@@ -43,16 +43,13 @@ pub(super) fn extract_logical_payloads(stream: &[u8], out: &mut Vec<u8>) -> (usi
             break;
         }
         let window = &stream[pos..pos + total_size];
-        match LogicalFrame::decode(window) {
-            Ok(logical) => {
-                out.extend_from_slice(logical.payload.as_slice());
-                logical_frames += 1;
-                pos += total_size;
-            }
-            Err(_) => {
-                parse_errors += 1;
-                pos += 1;
-            }
+        if let Ok(logical) = LogicalFrame::decode(window) {
+            out.extend_from_slice(logical.payload.as_slice());
+            logical_frames += 1;
+            pos += total_size;
+        } else {
+            parse_errors += 1;
+            pos += 1;
         }
     }
 

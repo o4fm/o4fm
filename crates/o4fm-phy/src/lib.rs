@@ -1,3 +1,10 @@
+#![allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_precision_loss,
+    clippy::incompatible_msrv,
+    clippy::missing_errors_doc
+)]
+
 use core::f32::consts::PI;
 
 use o4fm_core::RadioProfile;
@@ -254,6 +261,7 @@ fn estimate_freq_offset(samples: &[f32], sample_rate_hz: f32) -> f32 {
 }
 
 #[cfg(test)]
+#[allow(clippy::field_reassign_with_default)]
 mod tests {
     use o4fm_core::{Modulation, RadioProfile};
 

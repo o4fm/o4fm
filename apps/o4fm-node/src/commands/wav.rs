@@ -15,8 +15,7 @@ pub(crate) fn run_wav_mode(args: &WavArgs) -> Result<(), Box<dyn std::error::Err
     let mut total = 0usize;
 
     println!(
-        "o4fm-node wav mode: in={} out={} sample_rate={} frame={} gain={:.3}",
-        input, output, sample_rate_hz, frame_samples, gain
+        "o4fm-node wav mode: in={input} out={output} sample_rate={sample_rate_hz} frame={frame_samples} gain={gain:.3}"
     );
 
     loop {
