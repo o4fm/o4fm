@@ -1,10 +1,14 @@
 name: build
+permissions:
+  contents: read
 
 on:
-  workflow_dispatch:
   push:
-    tags:
-      - "v*"
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
 
 jobs:
   build-native:

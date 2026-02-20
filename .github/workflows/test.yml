@@ -1,8 +1,13 @@
-name: test
+name: Test
+permissions:
+  contents: read
 
 on:
   push:
+    branches: [main]
   pull_request:
+    branches: [main]
+  workflow_dispatch:
 
 jobs:
   test-linux:
