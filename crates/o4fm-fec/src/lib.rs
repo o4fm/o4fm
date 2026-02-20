@@ -105,7 +105,10 @@ fn quantize_llr_i8(llr: &[f32]) -> Vec<i8> {
 }
 
 fn select_code(fec_profile: &FecProfile) -> Option<LDPCCode> {
-    match (usize::from(fec_profile.code_n), usize::from(fec_profile.code_k)) {
+    match (
+        usize::from(fec_profile.code_n),
+        usize::from(fec_profile.code_k),
+    ) {
         (128, 64) => Some(LDPCCode::TC128),
         (256, 128) => Some(LDPCCode::TC256),
         (512, 256) => Some(LDPCCode::TC512),

@@ -7,6 +7,7 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
+clap.workspace = true
 heapless.workspace = true
 o4fm-core.workspace = true
 o4fm-link.workspace = true
@@ -14,6 +15,9 @@ o4fm-audio.workspace = true
 o4fm-fec.workspace = true
 o4fm-phy.workspace = true
 hound.workspace = true
+opus.workspace = true
+ratatui.workspace = true
+crossterm.workspace = true
 
 [lints]
 workspace = true

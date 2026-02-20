@@ -98,7 +98,9 @@ impl CpalRealtimeAudio {
         let host = cpal::default_host();
         let input_device = if let Some(id) = input_device_id {
             let parsed = cpal::DeviceId::from_str(id).map_err(|_| AudioError::InvalidDeviceId)?;
-            let dev = host.device_by_id(&parsed).ok_or(AudioError::BackendUnavailable)?;
+            let dev = host
+                .device_by_id(&parsed)
+                .ok_or(AudioError::BackendUnavailable)?;
             if !dev.supports_input() {
                 return Err(AudioError::BackendUnavailable);
             }
@@ -109,7 +111,9 @@ impl CpalRealtimeAudio {
         };
         let output_device = if let Some(id) = output_device_id {
             let parsed = cpal::DeviceId::from_str(id).map_err(|_| AudioError::InvalidDeviceId)?;
-            let dev = host.device_by_id(&parsed).ok_or(AudioError::BackendUnavailable)?;
+            let dev = host
+                .device_by_id(&parsed)
+                .ok_or(AudioError::BackendUnavailable)?;
             if !dev.supports_output() {
                 return Err(AudioError::BackendUnavailable);
             }
@@ -305,10 +309,7 @@ impl AudioIo for WavFileAudio {
 }
 
 pub fn list_devices() -> Result<Vec<String>, AudioError> {
-    Ok(list_device_infos()?
-        .into_iter()
-        .map(|d| d.name)
-        .collect())
+    Ok(list_device_infos()?.into_iter().map(|d| d.name).collect())
 }
 
 pub fn list_device_infos() -> Result<Vec<AudioDeviceInfo>, AudioError> {

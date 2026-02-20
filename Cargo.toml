@@ -26,6 +26,7 @@ all = "warn"
 pedantic = "warn"
 
 [workspace.dependencies]
+clap = { version = "4.5.32", features = ["derive"] }
 serde = { version = "1.0.228", default-features = false, features = ["derive"] }
 heapless = "0.9.2"
 thiserror = "2.0.18"
@@ -34,6 +35,9 @@ cpal = "0.17.3"
 labrador-ldpc = "1.2.1"
 criterion = { version = "0.8.2", features = ["html_reports"] }
 hound = "3.5.1"
+opus = "0.3.1"
+ratatui = "0.29.0"
+crossterm = "0.29.0"
 o4fm-core = { path = "crates/o4fm-core" }
 o4fm-phy = { path = "crates/o4fm-phy" }
 o4fm-fec = { path = "crates/o4fm-fec" }

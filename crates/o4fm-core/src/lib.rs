@@ -6,9 +6,26 @@ use serde::{Deserialize, Serialize};
 pub const DATA_FRAME_PAYLOAD_BYTES: usize = 128;
 pub const LOGICAL_MTU_BYTES: usize = 1792;
 pub const LOGICAL_MTU_FRAMES: usize = LOGICAL_MTU_BYTES / DATA_FRAME_PAYLOAD_BYTES;
+pub const LOGICAL_MAGIC: [u8; 4] = *b"O4FM";
+pub const LOGICAL_PROTO_VERSION: u8 = 1;
+pub const LOGICAL_CALLSIGN_BYTES: usize = 16;
+pub const LOGICAL_FLAGS_BYTES: usize = 8;
+pub const LOGICAL_MODE_BYTES: usize = 8;
+pub const LOGICAL_HEADER_BYTES: usize =
+    4 + 1 + 1 + 2 + LOGICAL_CALLSIGN_BYTES + LOGICAL_FLAGS_BYTES + LOGICAL_MODE_BYTES;
+pub const LOGICAL_MAX_PAYLOAD_BYTES: usize = LOGICAL_MTU_BYTES - LOGICAL_HEADER_BYTES;
+pub const LOGICAL_MODE_VOICE: u64 = 1;
+pub const LOGICAL_MODE_TEXT: u64 = 2;
+pub const LOGICAL_MODE_IP: u64 = 3;
 pub const MAX_PAYLOAD_BYTES: usize = DATA_FRAME_PAYLOAD_BYTES;
 pub const MAX_FRAME_BYTES: usize = 192;
 pub const MAX_NEGOTIATION_PROFILES: usize = 8;
+pub const DEFAULT_VOICE_BITRATE_BPS: u32 = 7_000;
+pub const DEFAULT_TONE_CENTER_HZ: u16 = 6_000;
+pub const DEFAULT_TONE_SPACING_HZ: u16 = 2_000;
+pub const DEFAULT_RX_BANDWIDTH_HZ: u16 = 10_000;
+pub const DEFAULT_AFC_RANGE_HZ: u16 = 600;
+pub const DEFAULT_NOISE_ADAPT_K_Q8: u8 = 96;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Modulation {
@@ -68,8 +85,14 @@ pub struct RadioProfile {
     pub modulation: Modulation,
     pub symbol_rate: SymbolRate,
     pub deviation_hz: u16,
+    pub tone_center_hz: u16,
+    pub tone_spacing_hz: u16,
+    pub rx_bandwidth_hz: u16,
+    pub afc_range_hz: u16,
     pub preamble_symbols: u16,
     pub sync_word: u32,
+    pub noise_adapt_k_q8: u8,
+    pub continuous_noise_mode: bool,
     pub whitening: bool,
     pub max_payload_bytes: u16,
     pub bt_tenths: u8,
@@ -81,8 +104,14 @@ impl Default for RadioProfile {
             modulation: Modulation::FourFsk,
             symbol_rate: SymbolRate::R4800,
             deviation_hz: 3_500,
+            tone_center_hz: DEFAULT_TONE_CENTER_HZ,
+            tone_spacing_hz: DEFAULT_TONE_SPACING_HZ,
+            rx_bandwidth_hz: DEFAULT_RX_BANDWIDTH_HZ,
+            afc_range_hz: DEFAULT_AFC_RANGE_HZ,
             preamble_symbols: 64,
             sync_word: 0xD3_91_7A_C5,
+            noise_adapt_k_q8: DEFAULT_NOISE_ADAPT_K_Q8,
+            continuous_noise_mode: true,
             whitening: true,
             max_payload_bytes: DATA_FRAME_PAYLOAD_BYTES as u16,
             bt_tenths: 5,
@@ -152,6 +181,44 @@ pub struct NegotiationProfile {
     pub code_k: u16,
     pub interleaver_depth: u8,
     pub max_iterations: u8,
+    pub voice_bitrate_bps: u32,
+    pub tone_center_hz: u16,
+    pub tone_spacing_hz: u16,
+    pub rx_bandwidth_hz: u16,
+    pub afc_range_hz: u16,
+    pub preamble_symbols: u16,
+    pub sync_word: u32,
+    pub noise_adapt_k_q8: u8,
+    pub continuous_noise_mode: bool,
+}
+
+impl NegotiationProfile {
+    #[must_use]
+    pub fn to_radio_profile(self) -> RadioProfile {
+        let mut out = RadioProfile::default();
+        out.modulation = self.modulation;
+        out.symbol_rate = self.symbol_rate;
+        out.tone_center_hz = self.tone_center_hz;
+        out.tone_spacing_hz = self.tone_spacing_hz;
+        out.rx_bandwidth_hz = self.rx_bandwidth_hz;
+        out.afc_range_hz = self.afc_range_hz;
+        out.preamble_symbols = self.preamble_symbols;
+        out.sync_word = self.sync_word;
+        out.noise_adapt_k_q8 = self.noise_adapt_k_q8;
+        out.continuous_noise_mode = self.continuous_noise_mode;
+        out
+    }
+
+    #[must_use]
+    pub fn to_fec_profile(self) -> FecProfile {
+        FecProfile {
+            scheme: self.fec_scheme,
+            code_n: self.code_n,
+            code_k: self.code_k,
+            interleaver_depth: self.interleaver_depth,
+            max_iterations: self.max_iterations,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -181,6 +248,30 @@ pub enum FrameCodecError {
     PayloadTooLarge,
     InvalidFormat,
     CrcMismatch,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct LogicalFrameHeader {
+    pub total_size: u16,
+    pub callsign: [u8; LOGICAL_CALLSIGN_BYTES],
+    pub flags: u64,
+    pub mode: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LogicalFrame {
+    pub header: LogicalFrameHeader,
+    pub payload: Vec<u8, LOGICAL_MAX_PAYLOAD_BYTES>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LogicalFrameCodecError {
+    BufferTooSmall,
+    PayloadTooLarge,
+    InvalidFormat,
+    MagicMismatch,
+    UnsupportedVersion,
+    LengthMismatch,
 }
 
 impl Frame {
@@ -273,7 +364,125 @@ impl Frame {
     }
 }
 
-const NEGOTIATION_PROFILE_BYTES: usize = 11;
+impl LogicalFrame {
+    #[must_use]
+    pub fn new(
+        callsign: [u8; LOGICAL_CALLSIGN_BYTES],
+        flags: u64,
+        mode: u64,
+        payload: &[u8],
+    ) -> Option<Self> {
+        if payload.len() > LOGICAL_MAX_PAYLOAD_BYTES {
+            return None;
+        }
+        let total_size = payload.len() + LOGICAL_HEADER_BYTES;
+        let total_size_u16 = u16::try_from(total_size).ok()?;
+        let mut v = Vec::<u8, LOGICAL_MAX_PAYLOAD_BYTES>::new();
+        if v.extend_from_slice(payload).is_err() {
+            return None;
+        }
+        Some(Self {
+            header: LogicalFrameHeader {
+                total_size: total_size_u16,
+                callsign,
+                flags,
+                mode,
+            },
+            payload: v,
+        })
+    }
+
+    pub fn encode(&self) -> Result<Vec<u8, LOGICAL_MTU_BYTES>, LogicalFrameCodecError> {
+        if self.payload.len() > LOGICAL_MAX_PAYLOAD_BYTES {
+            return Err(LogicalFrameCodecError::PayloadTooLarge);
+        }
+        let expected_size = LOGICAL_HEADER_BYTES + self.payload.len();
+        if usize::from(self.header.total_size) != expected_size || expected_size > LOGICAL_MTU_BYTES
+        {
+            return Err(LogicalFrameCodecError::LengthMismatch);
+        }
+
+        let mut out = Vec::<u8, LOGICAL_MTU_BYTES>::new();
+        push_logical(&mut out, LOGICAL_MAGIC[0])?;
+        push_logical(&mut out, LOGICAL_MAGIC[1])?;
+        push_logical(&mut out, LOGICAL_MAGIC[2])?;
+        push_logical(&mut out, LOGICAL_MAGIC[3])?;
+        push_logical(&mut out, LOGICAL_PROTO_VERSION)?;
+        push_logical(
+            &mut out,
+            u8::try_from(LOGICAL_HEADER_BYTES)
+                .map_err(|_| LogicalFrameCodecError::InvalidFormat)?,
+        )?;
+        out.extend_from_slice(&self.header.total_size.to_be_bytes())
+            .map_err(|_| LogicalFrameCodecError::BufferTooSmall)?;
+        out.extend_from_slice(&self.header.callsign)
+            .map_err(|_| LogicalFrameCodecError::BufferTooSmall)?;
+        out.extend_from_slice(&self.header.flags.to_be_bytes())
+            .map_err(|_| LogicalFrameCodecError::BufferTooSmall)?;
+        out.extend_from_slice(&self.header.mode.to_be_bytes())
+            .map_err(|_| LogicalFrameCodecError::BufferTooSmall)?;
+        out.extend_from_slice(&self.payload)
+            .map_err(|_| LogicalFrameCodecError::BufferTooSmall)?;
+
+        Ok(out)
+    }
+
+    pub fn decode(buf: &[u8]) -> Result<Self, LogicalFrameCodecError> {
+        if buf.len() < LOGICAL_HEADER_BYTES {
+            return Err(LogicalFrameCodecError::InvalidFormat);
+        }
+        if buf[0..4] != LOGICAL_MAGIC {
+            return Err(LogicalFrameCodecError::MagicMismatch);
+        }
+        if buf[4] != LOGICAL_PROTO_VERSION {
+            return Err(LogicalFrameCodecError::UnsupportedVersion);
+        }
+        if usize::from(buf[5]) != LOGICAL_HEADER_BYTES {
+            return Err(LogicalFrameCodecError::InvalidFormat);
+        }
+
+        let total_size = usize::from(u16::from_be_bytes([buf[6], buf[7]]));
+        if !(LOGICAL_HEADER_BYTES..=LOGICAL_MTU_BYTES).contains(&total_size) {
+            return Err(LogicalFrameCodecError::LengthMismatch);
+        }
+        if buf.len() != total_size {
+            return Err(LogicalFrameCodecError::LengthMismatch);
+        }
+
+        let mut callsign = [0_u8; LOGICAL_CALLSIGN_BYTES];
+        callsign.copy_from_slice(&buf[8..8 + LOGICAL_CALLSIGN_BYTES]);
+        let flags_start = 8 + LOGICAL_CALLSIGN_BYTES;
+        let mode_start = flags_start + LOGICAL_FLAGS_BYTES;
+        let payload_start = mode_start + LOGICAL_MODE_BYTES;
+        let flags = u64::from_be_bytes(
+            buf[flags_start..flags_start + LOGICAL_FLAGS_BYTES]
+                .try_into()
+                .map_err(|_| LogicalFrameCodecError::InvalidFormat)?,
+        );
+        let mode = u64::from_be_bytes(
+            buf[mode_start..mode_start + LOGICAL_MODE_BYTES]
+                .try_into()
+                .map_err(|_| LogicalFrameCodecError::InvalidFormat)?,
+        );
+        let mut payload = Vec::<u8, LOGICAL_MAX_PAYLOAD_BYTES>::new();
+        payload
+            .extend_from_slice(&buf[payload_start..total_size])
+            .map_err(|_| LogicalFrameCodecError::BufferTooSmall)?;
+
+        Ok(Self {
+            header: LogicalFrameHeader {
+                total_size: u16::try_from(total_size)
+                    .map_err(|_| LogicalFrameCodecError::LengthMismatch)?,
+                callsign,
+                flags,
+                mode,
+            },
+            payload,
+        })
+    }
+}
+
+const NEGOTIATION_PROFILE_BYTES: usize = 30;
 
 pub fn encode_capability_payload(
     profiles: &[NegotiationProfile],
@@ -354,7 +563,26 @@ fn encode_profile_into(
         (profile.code_k & 0xFF) as u8,
         profile.interleaver_depth,
         profile.max_iterations,
-        0,
+        ((profile.voice_bitrate_bps >> 24) & 0xFF) as u8,
+        ((profile.voice_bitrate_bps >> 16) & 0xFF) as u8,
+        ((profile.voice_bitrate_bps >> 8) & 0xFF) as u8,
+        (profile.voice_bitrate_bps & 0xFF) as u8,
+        (profile.tone_center_hz >> 8) as u8,
+        (profile.tone_center_hz & 0xFF) as u8,
+        (profile.tone_spacing_hz >> 8) as u8,
+        (profile.tone_spacing_hz & 0xFF) as u8,
+        (profile.rx_bandwidth_hz >> 8) as u8,
+        (profile.rx_bandwidth_hz & 0xFF) as u8,
+        (profile.afc_range_hz >> 8) as u8,
+        (profile.afc_range_hz & 0xFF) as u8,
+        (profile.preamble_symbols >> 8) as u8,
+        (profile.preamble_symbols & 0xFF) as u8,
+        ((profile.sync_word >> 24) & 0xFF) as u8,
+        ((profile.sync_word >> 16) & 0xFF) as u8,
+        ((profile.sync_word >> 8) & 0xFF) as u8,
+        (profile.sync_word & 0xFF) as u8,
+        profile.noise_adapt_k_q8,
+        u8::from(profile.continuous_noise_mode),
     ] {
         out.push(byte)
             .map_err(|_| NegotiationCodecError::BufferTooSmall)?;
@@ -381,6 +609,21 @@ fn decode_profile(payload: &[u8]) -> Result<NegotiationProfile, NegotiationCodec
     };
     let code_n = (u16::from(payload[4]) << 8) | u16::from(payload[5]);
     let code_k = (u16::from(payload[6]) << 8) | u16::from(payload[7]);
+    let voice_bitrate_bps = (u32::from(payload[10]) << 24)
+        | (u32::from(payload[11]) << 16)
+        | (u32::from(payload[12]) << 8)
+        | u32::from(payload[13]);
+    let tone_center_hz = (u16::from(payload[14]) << 8) | u16::from(payload[15]);
+    let tone_spacing_hz = (u16::from(payload[16]) << 8) | u16::from(payload[17]);
+    let rx_bandwidth_hz = (u16::from(payload[18]) << 8) | u16::from(payload[19]);
+    let afc_range_hz = (u16::from(payload[20]) << 8) | u16::from(payload[21]);
+    let preamble_symbols = (u16::from(payload[22]) << 8) | u16::from(payload[23]);
+    let sync_word = (u32::from(payload[24]) << 24)
+        | (u32::from(payload[25]) << 16)
+        | (u32::from(payload[26]) << 8)
+        | u32::from(payload[27]);
+    let noise_adapt_k_q8 = payload[28];
+    let continuous_noise_mode = payload[29] != 0;
     Ok(NegotiationProfile {
         profile_id: payload[0],
         modulation,
@@ -390,11 +633,39 @@ fn decode_profile(payload: &[u8]) -> Result<NegotiationProfile, NegotiationCodec
         code_k,
         interleaver_depth: payload[8],
         max_iterations: payload[9],
+        voice_bitrate_bps,
+        tone_center_hz,
+        tone_spacing_hz,
+        rx_bandwidth_hz,
+        afc_range_hz,
+        preamble_symbols,
+        sync_word,
+        noise_adapt_k_q8,
+        continuous_noise_mode,
     })
 }
 
 fn push(out: &mut Vec<u8, MAX_FRAME_BYTES>, b: u8) -> Result<(), FrameCodecError> {
     out.push(b).map_err(|_| FrameCodecError::BufferTooSmall)
+}
+
+fn push_logical(out: &mut Vec<u8, LOGICAL_MTU_BYTES>, b: u8) -> Result<(), LogicalFrameCodecError> {
+    out.push(b)
+        .map_err(|_| LogicalFrameCodecError::BufferTooSmall)
+}
+
+#[must_use]
+pub fn callsign_ascii16(input: &str) -> [u8; LOGICAL_CALLSIGN_BYTES] {
+    let mut out = [b' '; LOGICAL_CALLSIGN_BYTES];
+    for (idx, b) in input
+        .as_bytes()
+        .iter()
+        .take(LOGICAL_CALLSIGN_BYTES)
+        .enumerate()
+    {
+        out[idx] = b.to_ascii_uppercase();
+    }
+    out
 }
 
 #[must_use]
@@ -471,10 +742,37 @@ mod tests {
             code_k: 128,
             interleaver_depth: 8,
             max_iterations: 16,
+            voice_bitrate_bps: DEFAULT_VOICE_BITRATE_BPS,
+            tone_center_hz: DEFAULT_TONE_CENTER_HZ,
+            tone_spacing_hz: DEFAULT_TONE_SPACING_HZ,
+            rx_bandwidth_hz: DEFAULT_RX_BANDWIDTH_HZ,
+            afc_range_hz: DEFAULT_AFC_RANGE_HZ,
+            preamble_symbols: 64,
+            sync_word: 0xD3_91_7A_C5,
+            noise_adapt_k_q8: DEFAULT_NOISE_ADAPT_K_Q8,
+            continuous_noise_mode: true,
         }];
         let encoded = encode_capability_payload(&profiles).expect("encode payload");
         let decoded = decode_capability_payload(&encoded).expect("decode payload");
         assert_eq!(decoded.len(), 1);
         assert_eq!(decoded[0].symbol_rate, SymbolRate::R4800);
+        assert_eq!(decoded[0].voice_bitrate_bps, DEFAULT_VOICE_BITRATE_BPS);
+        assert_eq!(decoded[0].tone_center_hz, DEFAULT_TONE_CENTER_HZ);
+    }
+
+    #[test]
+    fn logical_frame_round_trip() {
+        let frame = LogicalFrame::new(
+            callsign_ascii16("N0CALL"),
+            0x12,
+            LOGICAL_MODE_TEXT,
+            b"hello",
+        )
+        .expect("logical payload fits");
+        let encoded = frame.encode().expect("logical encode");
+        let decoded = LogicalFrame::decode(&encoded).expect("logical decode");
+        assert_eq!(decoded.payload.as_slice(), b"hello");
+        assert_eq!(decoded.header.mode, LOGICAL_MODE_TEXT);
+        assert_eq!(decoded.header.flags, 0x12);
     }
 }
