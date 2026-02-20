@@ -1,0 +1,15 @@
+[package]
+name = "o4fm-fec"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+o4fm-core.workspace = true
+thiserror.workspace = true
+labrador-ldpc.workspace = true
+
+[lints]
+workspace = true

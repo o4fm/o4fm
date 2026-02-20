@@ -1,0 +1,23 @@
+[package]
+name = "o4fm-link"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+o4fm-core.workspace = true
+heapless.workspace = true
+
+[dev-dependencies]
+criterion.workspace = true
+o4fm-fec.workspace = true
+o4fm-phy.workspace = true
+
+[[bench]]
+name = "critical_metrics"
+harness = false
+
+[lints]
+workspace = true

@@ -1,0 +1,15 @@
+[package]
+name = "o4fm-audio"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+cpal.workspace = true
+thiserror.workspace = true
+hound.workspace = true
+
+[lints]
+workspace = true

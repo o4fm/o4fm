@@ -1,0 +1,19 @@
+[package]
+name = "o4fm-node"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+heapless.workspace = true
+o4fm-core.workspace = true
+o4fm-link.workspace = true
+o4fm-audio.workspace = true
+o4fm-fec.workspace = true
+o4fm-phy.workspace = true
+hound.workspace = true
+
+[lints]
+workspace = true

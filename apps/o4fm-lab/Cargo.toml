@@ -1,0 +1,16 @@
+[package]
+name = "o4fm-lab"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+o4fm-core.workspace = true
+o4fm-phy.workspace = true
+o4fm-fec.workspace = true
+rand.workspace = true
+
+[lints]
+workspace = true
