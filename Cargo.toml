@@ -13,10 +13,8 @@ resolver = "2"
 
 [workspace.package]
 edition = "2024"
-rust-version = "1.85"
 version = "0.1.0"
-license = "MIT"
-authors = ["o4fm contributors"]
+license = "GPLv3"
 
 [workspace.lints.rust]
 unsafe_code = "warn"
