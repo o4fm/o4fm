@@ -111,12 +111,12 @@ impl LinkMachine {
                 if frame.header.kind == FrameKind::Probe =>
             {
                 self.state = LinkState::Negotiating;
-                if !self.capability_sent {
-                    if let Ok(payload) = encode_capability_payload(&self.supported_profiles) {
-                        let cap = self.build_control_frame(FrameKind::Capability, &payload);
-                        let _ = out.push(LinkAction::SendFrame(cap));
-                        self.capability_sent = true;
-                    }
+                if !self.capability_sent
+                    && let Ok(payload) = encode_capability_payload(&self.supported_profiles)
+                {
+                    let cap = self.build_control_frame(FrameKind::Capability, &payload);
+                    let _ = out.push(LinkAction::SendFrame(cap));
+                    self.capability_sent = true;
                 }
             }
 
@@ -126,12 +126,12 @@ impl LinkMachine {
                 self.state = LinkState::Negotiating;
                 if let Ok(remote) = decode_capability_payload(frame.payload.as_slice()) {
                     self.remote_profiles = remote;
-                    if !self.capability_sent {
-                        if let Ok(payload) = encode_capability_payload(&self.supported_profiles) {
-                            let cap = self.build_control_frame(FrameKind::Capability, &payload);
-                            let _ = out.push(LinkAction::SendFrame(cap));
-                            self.capability_sent = true;
-                        }
+                    if !self.capability_sent
+                        && let Ok(payload) = encode_capability_payload(&self.supported_profiles)
+                    {
+                        let cap = self.build_control_frame(FrameKind::Capability, &payload);
+                        let _ = out.push(LinkAction::SendFrame(cap));
+                        self.capability_sent = true;
                     }
 
                     if let Some(selected_local) = self.pick_common_profile() {
@@ -147,15 +147,13 @@ impl LinkMachine {
             (LinkState::Negotiating, LinkEvent::RxFrame(frame))
                 if frame.header.kind == FrameKind::Select =>
             {
-                if let Ok(selected) = decode_selected_profile_payload(frame.payload.as_slice()) {
-                    if let Some(local_selected) = self.find_local_match(selected) {
-                        self.pending_profile = Some(local_selected);
-                        if let Ok(commit_payload) = encode_selected_profile_payload(&local_selected)
-                        {
-                            let commit =
-                                self.build_control_frame(FrameKind::Commit, &commit_payload);
-                            let _ = out.push(LinkAction::SendFrame(commit));
-                        }
+                if let Ok(selected) = decode_selected_profile_payload(frame.payload.as_slice())
+                    && let Some(local_selected) = self.find_local_match(selected)
+                {
+                    self.pending_profile = Some(local_selected);
+                    if let Ok(commit_payload) = encode_selected_profile_payload(&local_selected) {
+                        let commit = self.build_control_frame(FrameKind::Commit, &commit_payload);
+                        let _ = out.push(LinkAction::SendFrame(commit));
                     }
                 }
             }
@@ -163,14 +161,14 @@ impl LinkMachine {
             (LinkState::Negotiating, LinkEvent::RxFrame(frame))
                 if frame.header.kind == FrameKind::Commit =>
             {
-                if let Ok(committed) = decode_selected_profile_payload(frame.payload.as_slice()) {
-                    if let Some(local_committed) = self.find_local_match(committed) {
-                        self.active_profile = local_committed;
-                        self.state = LinkState::Data;
-                        let _ = out.push(LinkAction::EnterProfile {
-                            profile: self.active_profile,
-                        });
-                    }
+                if let Ok(committed) = decode_selected_profile_payload(frame.payload.as_slice())
+                    && let Some(local_committed) = self.find_local_match(committed)
+                {
+                    self.active_profile = local_committed;
+                    self.state = LinkState::Data;
+                    let _ = out.push(LinkAction::EnterProfile {
+                        profile: self.active_profile,
+                    });
                 }
             }
 

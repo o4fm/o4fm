@@ -84,21 +84,3 @@ cargo bench -p o4fm-link --bench critical_metrics
 Report entry page:
 
 `/target/criterion/report/index.html`
-
-## Note
-
-The FEC internals are intentionally lightweight for v1 scaffolding. The public API is designed to allow swapping in a full QC-LDPC implementation in a follow-up iteration.
-
-## CI/CD (GitHub Actions)
-
-- CI workflow: `.github/workflows/ci.yml`
-  - Linux unit tests on every `push` and `pull_request`
-- Packaging workflow: `.github/workflows/packages.yml`
-  - Trigger on `workflow_dispatch` and `v*` tags
-  - Native packages:
-    - Linux `x86_64`
-    - macOS `x86_64` and `arm64`
-    - Windows `x86_64`
-  - Cross Linux packages:
-    - `aarch64-unknown-linux-gnu`
-    - `armv7-unknown-linux-gnueabihf`
