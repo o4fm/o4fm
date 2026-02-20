@@ -116,7 +116,6 @@ jobs:
         target:
           - aarch64-unknown-linux-gnu
           - armv7-unknown-linux-gnueabihf
-          - riscv64gc-unknown-linux-gnu
 
     steps:
       - name: Checkout
@@ -166,9 +165,9 @@ jobs:
           path: dist/o4fm-linux-${{ matrix.target }}.tar.gz
           if-no-files-found: error
 
-  build-macos-cross:
-    name: macOS cross x86_64
-    runs-on: macos-14
+  build-macos-intel:
+    name: macOS x86_64 (intel)
+    runs-on: macos-15-intel
     env:
       SCCACHE_GHA_ENABLED: "true"
       RUSTC_WRAPPER: sccache
@@ -201,10 +200,7 @@ jobs:
           brew install pkg-config opus cmake
           echo "PKG_CONFIG_PATH=$(brew --prefix opus)/lib/pkgconfig:${PKG_CONFIG_PATH}" >> "$GITHUB_ENV"
 
-      - name: Build release binaries (macOS cross)
-        env:
-          OPUS_NO_PKG_CONFIG: "1"
-          CMAKE_ARGS: -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+      - name: Build release binaries (macOS x86_64)
         run: cargo build --release -p o4fm-node -p o4fm-lab --target x86_64-apple-darwin
 
       - name: Package artifacts
@@ -232,7 +228,7 @@ jobs:
     needs:
       - build-native
       - build-linux-cross
-      - build-macos-cross
+      - build-macos-intel
     if: startsWith(github.ref, 'refs/tags/v')
     permissions:
       contents: write

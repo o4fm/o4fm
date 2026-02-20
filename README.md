@@ -102,4 +102,3 @@ The FEC internals are intentionally lightweight for v1 scaffolding. The public A
   - Cross Linux packages:
     - `aarch64-unknown-linux-gnu`
     - `armv7-unknown-linux-gnueabihf`
-    - `riscv64gc-unknown-linux-gnu`
